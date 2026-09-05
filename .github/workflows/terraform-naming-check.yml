@@ -1,0 +1,39 @@
+name: Terraform naming check
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/terraform/**"
+
+jobs:
+  validate-and-guard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: terraform fmt check
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend, no credentials needed)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: Guard against hardcoded resource names
+        run: |
+          # Any `name = "literal string"` on a resource block that does NOT
+          # reference local.names.* or module.naming.* is a naming-convention bypass.
+          if grep -RnE '^\s*name\s*=\s*"[^"]*"' *.tf \
+              | grep -v 'local\.names\.' \
+              | grep -v 'module\.naming\.'; then
+            echo "::error::Found a hardcoded resource name. Use local.names.<type> from naming.tf instead."
+            exit 1
+          fi
