@@ -1,0 +1,4 @@
+workload    = "br2049"
+environment = "dev"
+location    = "eastus"
+instance    = "001"
